@@ -1,0 +1,131 @@
+{
+  "info": {
+    "name": "Vibe Coding Weather API",
+    "_postman_id": "c2dd5e3e-0000-4000-8000-weatherapi",
+    "description": "Collection to test the reactive Weather API built with Spring WebFlux. Uses Open-Meteo external services. Set the baseUrl variable (e.g. http://localhost:8080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Current Weather - Berlin",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/weather/current?city=Berlin",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "weather", "current"],
+          "query": [
+            {"key": "city", "value": "Berlin"}
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.code === 200);",
+              "const json = pm.response.json();",
+              "pm.test('Has city field', () => json.city && json.city.toLowerCase().includes('berlin'));",
+              "pm.test('Temperature is number', () => typeof json.temperature === 'number');",
+              "pm.test('Windspeed is number', () => typeof json.windspeed === 'number');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Current Weather - City With Spaces (San Francisco)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/weather/current?city=San%20Francisco",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "weather", "current"],
+          "query": [
+            {"key": "city", "value": "San Francisco"}
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => pm.response.code === 200);",
+              "const json = pm.response.json();",
+              "pm.test('City contains San', () => json.city && json.city.toLowerCase().includes('san'));",
+              "pm.test('Temperature numeric', () => typeof json.temperature === 'number');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Current Weather - Unknown City (Expect 404)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+            "raw": "{{baseUrl}}/api/weather/current?city=asdfghjkqwertycity",
+            "host": ["{{baseUrl}}"],
+            "path": ["api", "weather", "current"],
+            "query": [
+              {"key": "city", "value": "asdfghjkqwertycity"}
+            ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 404', () => pm.response.code === 404);",
+              "const json = pm.response.json();",
+              "pm.test('Contains error message', () => json.error && json.error.includes('City not found'));",
+              "pm.test('Status field matches 404', () => json.status === 404);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Current Weather - Blank City (Expect 400)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+            "raw": "{{baseUrl}}/api/weather/current?city=%20",
+            "host": ["{{baseUrl}}"],
+            "path": ["api", "weather", "current"],
+            "query": [
+              {"key": "city", "value": " "}
+            ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 400', () => pm.response.code === 400);",
+              "const json = pm.response.json();",
+              "pm.test('Error indicates blank city', () => json.error && json.error.toLowerCase().includes('blank'));",
+              "pm.test('Status field matches 400', () => json.status === 400);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080"}
+  ]
+}
+
