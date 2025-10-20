@@ -6,6 +6,7 @@ public class DailyForecastItem {
     private final Double tempMin;
     private final Integer precipitationProbabilityMax;
     private final Integer weatherCode;
+    private final String weatherDescription;
 
     public DailyForecastItem(String date, Double tempMax, Double tempMin, Integer precipitationProbabilityMax, Integer weatherCode) {
         this.date = date;
@@ -13,6 +14,7 @@ public class DailyForecastItem {
         this.tempMin = tempMin;
         this.precipitationProbabilityMax = precipitationProbabilityMax;
         this.weatherCode = weatherCode;
+        this.weatherDescription = WeatherCode.getDescriptionByCode(weatherCode);
     }
 
     public String getDate() { return date; }
@@ -20,4 +22,5 @@ public class DailyForecastItem {
     public Double getTempMin() { return tempMin; }
     public Integer getPrecipitationProbabilityMax() { return precipitationProbabilityMax; }
     public Integer getWeatherCode() { return weatherCode; }
+    public String getWeatherDescription() { return weatherDescription; }
 }
