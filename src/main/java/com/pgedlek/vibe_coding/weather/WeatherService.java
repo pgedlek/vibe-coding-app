@@ -85,13 +85,14 @@ public class WeatherService {
                 ));
             }
         }
+        String windDirection = convertWindDirectionToCardinal(forecast.getCurrent_weather().getWinddirection());
         return new WeatherResponse(
                 geoResult.getName(),
                 forecast.getLatitude(),
                 forecast.getLongitude(),
                 forecast.getCurrent_weather().getTemperature(),
                 forecast.getCurrent_weather().getWindspeed(),
-                forecast.getCurrent_weather().getWinddirection(),
+                windDirection,
                 forecast.getCurrent_weather().getTime(),
                 items
         );
@@ -130,6 +131,20 @@ public class WeatherService {
                 .doOnError(WebClientException.class, e -> logger.error("WebClient error for city {}: {}", trimmed, e.getMessage()))
                 .doOnError(CityNotFoundException.class, e -> logger.warn("City not found: {}", trimmed))
                 .doOnError(IllegalArgumentException.class, e -> logger.warn("Invalid input: {}", e.getMessage()));
+    }
+
+    private String convertWindDirectionToCardinal(int degrees) {
+        degrees = degrees % 360;
+        if (degrees < 0) degrees += 360;
+        if (degrees >= 337.5 || degrees < 22.5) return "N";
+        if (degrees >= 22.5 && degrees < 67.5) return "NE";
+        if (degrees >= 67.5 && degrees < 112.5) return "E";
+        if (degrees >= 112.5 && degrees < 157.5) return "SE";
+        if (degrees >= 157.5 && degrees < 202.5) return "S";
+        if (degrees >= 202.5 && degrees < 247.5) return "SW";
+        if (degrees >= 247.5 && degrees < 292.5) return "W";
+        if (degrees >= 292.5 && degrees < 337.5) return "NW";
+        return "N"; // fallback
     }
 
     public long cacheSize() {

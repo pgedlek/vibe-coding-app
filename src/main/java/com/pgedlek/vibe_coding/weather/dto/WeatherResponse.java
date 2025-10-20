@@ -8,13 +8,13 @@ public class WeatherResponse {
     private double longitude;
     private double temperature;
     private double windspeed;
-    private int winddirection;
+    private String winddirection;
     private String time;
     private List<DailyForecastItem> forecast;
 
     public WeatherResponse() {}
 
-    public WeatherResponse(String city, double latitude, double longitude, double temperature, double windspeed, int winddirection, String time, List<DailyForecastItem> forecast) {
+    public WeatherResponse(String city, double latitude, double longitude, double temperature, double windspeed, String winddirection, String time, List<DailyForecastItem> forecast) {
         this.city = city;
         this.latitude = latitude;
         this.longitude = longitude;
@@ -30,7 +30,7 @@ public class WeatherResponse {
     public double getLongitude() { return longitude; }
     public double getTemperature() { return temperature; }
     public double getWindspeed() { return windspeed; }
-    public int getWinddirection() { return winddirection; }
+    public String getWinddirection() { return winddirection; }
     public String getTime() { return time; }
     public List<DailyForecastItem> getForecast() { return forecast; }
 }
