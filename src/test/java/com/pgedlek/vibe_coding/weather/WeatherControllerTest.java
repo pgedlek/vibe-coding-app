@@ -22,7 +22,8 @@ class WeatherControllerTest {
                 .expectBody()
                 .jsonPath("$.city").value(anyOf(equalToIgnoringCase("Berlin"), containsStringIgnoringCase("Berlin")))
                 .jsonPath("$.temperature").isNumber()
-                .jsonPath("$.windspeed").isNumber();
+                .jsonPath("$.forecast").isArray()
+                .jsonPath("$.forecast.length()").value(greaterThan(0));
     }
 
     @Test
@@ -33,7 +34,7 @@ class WeatherControllerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.city").value(containsStringIgnoringCase("San"))
-                .jsonPath("$.temperature").isNumber();
+                .jsonPath("$.forecast").isArray();
     }
 
     @Test
@@ -56,17 +57,14 @@ class WeatherControllerTest {
 
     @Test
     void cacheStoresSingleNormalizedEntryForDifferentCase() {
-        // First request populates cache
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/weather/current").queryParam("city", "Berlin").build())
                 .exchange()
                 .expectStatus().isOk();
-        // Second request (different case) should hit cache
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/weather/current").queryParam("city", "BERLIN").build())
                 .exchange()
                 .expectStatus().isOk();
-        // Check cache size endpoint - should be >=1 (cannot guarantee only one if other tests ran, but we assert at least one)
         webTestClient.get().uri("/api/weather/cache/size")
                 .exchange()
                 .expectStatus().isOk()

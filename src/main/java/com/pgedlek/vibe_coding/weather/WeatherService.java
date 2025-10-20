@@ -7,6 +7,7 @@ import reactor.core.publisher.Mono;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import com.github.benmanes.caffeine.cache.Cache;
 
@@ -43,20 +44,41 @@ public class WeatherService {
                         return Mono.error(new CityNotFoundException(trimmed));
                     }
                     GeocodingResult result = results.get(0);
-                    String forecastUrl = "https://api.open-meteo.com/v1/forecast?current_weather=true&latitude=" + result.getLatitude() + "&longitude=" + result.getLongitude();
+                    String forecastUrl = "https://api.open-meteo.com/v1/forecast?current_weather=true&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=UTC&latitude=" + result.getLatitude() + "&longitude=" + result.getLongitude();
                     return webClient.get()
                             .uri(forecastUrl)
                             .retrieve()
                             .bodyToMono(ForecastResponse.class)
-                            .map(fr -> new WeatherResponse(
-                                    result.getName(),
-                                    fr.getLatitude(),
-                                    fr.getLongitude(),
-                                    fr.getCurrent_weather().getTemperature(),
-                                    fr.getCurrent_weather().getWindspeed(),
-                                    fr.getCurrent_weather().getWinddirection(),
-                                    fr.getCurrent_weather().getTime()
-                            ));
+                            .map(fr -> {
+                                List<DailyForecastItem> items = new ArrayList<>();
+                                DailyData daily = fr.getDaily();
+                                if (daily != null && daily.getTime() != null) {
+                                    String[] times = daily.getTime();
+                                    Double[] max = daily.getTemperature_2m_max();
+                                    Double[] min = daily.getTemperature_2m_min();
+                                    Integer[] precip = daily.getPrecipitation_probability_max();
+                                    Integer[] codes = daily.getWeathercode();
+                                    for (int i = 0; i < times.length; i++) {
+                                        items.add(new DailyForecastItem(
+                                                times[i],
+                                                max != null && i < max.length ? max[i] : null,
+                                                min != null && i < min.length ? min[i] : null,
+                                                precip != null && i < precip.length ? precip[i] : null,
+                                                codes != null && i < codes.length ? codes[i] : null
+                                        ));
+                                    }
+                                }
+                                return new WeatherResponse(
+                                        result.getName(),
+                                        fr.getLatitude(),
+                                        fr.getLongitude(),
+                                        fr.getCurrent_weather().getTemperature(),
+                                        fr.getCurrent_weather().getWindspeed(),
+                                        fr.getCurrent_weather().getWinddirection(),
+                                        fr.getCurrent_weather().getTime(),
+                                        items
+                                );
+                            });
                 })
                 .doOnNext(resp -> weatherCache.put(normalizedKey, resp));
     }
