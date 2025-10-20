@@ -4,9 +4,11 @@ import com.pgedlek.vibe_coding.weather.dto.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -38,6 +40,7 @@ public class WeatherService {
                 .uri(geocodeUrl)
                 .retrieve()
                 .bodyToMono(GeocodingResponse.class)
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)))
                 .flatMap(geo -> {
                     List<GeocodingResult> results = geo.getResults();
                     if (results == null || results.isEmpty()) {
@@ -49,6 +52,7 @@ public class WeatherService {
                             .uri(forecastUrl)
                             .retrieve()
                             .bodyToMono(ForecastResponse.class)
+                            .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)))
                             .map(fr -> {
                                 List<DailyForecastItem> items = new ArrayList<>();
                                 DailyData daily = fr.getDaily();
