@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
-@RestControllerAdvice
+@RestControllerAdvice(assignableTypes = WeatherController.class)
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(CityNotFoundException.class)

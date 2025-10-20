@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Weather Lookup</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+<body>
+<div class="container">
+    <h1>Weather Lookup</h1>
+    <form method="get" th:action="@{/weather}" class="weather-form">
+        <label for="city">City:</label>
+        <input type="text" id="city" name="city" th:value="${city}" placeholder="Enter city name" required />
+        <button type="submit">Get Weather</button>
+    </form>
+
+    <div th:if="${error}" class="alert error">[[${error}]]</div>
+
+    <section th:if="${weather}" class="result">
+        <h2 th:text="${weather.city}"></h2>
+        <table>
+            <tr><th>Temperature (°C)</th><td th:text="${weather.temperature}"></td></tr>
+            <tr><th>Wind Speed (km/h)</th><td th:text="${weather.windspeed}"></td></tr>
+            <tr><th>Wind Direction (°)</th><td th:text="${weather.winddirection}"></td></tr>
+            <tr><th>Time (UTC)</th><td th:text="${weather.time}"></td></tr>
+            <tr><th>Coordinates</th><td><span th:text="${weather.latitude}"></span>, <span th:text="${weather.longitude}"></span></td></tr>
+        </table>
+    </section>
+
+    <footer>
+        <p>Data powered by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open‑Meteo</a>.</p>
+    </footer>
+</div>
+</body>
+</html>

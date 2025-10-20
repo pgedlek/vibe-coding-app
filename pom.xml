@@ -34,6 +34,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -52,6 +56,18 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.14.0</version>
+				<configuration>
+					<release>17</release>
+					<compilerArgs>
+						<arg>-Xlint:unchecked</arg>
+						<arg>-Xlint:deprecation</arg>
+					</compilerArgs>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

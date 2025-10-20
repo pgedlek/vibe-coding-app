@@ -1,12 +1,30 @@
-# Vibe Coding Weather App (Backend)
+# Vibe Coding Weather App (Backend + UI)
 
-Reactive Spring Boot application providing current weather data for a given city using the free [Open-Meteo](https://open-meteo.com/) APIs (no API key required).
+Reactive Spring Boot application providing current weather data for a given city using the free [Open-Meteo](https://open-meteo.com/) APIs (no API key required). Now includes a simple Thymeleaf UI.
 
-## Endpoint
+## Endpoints
 
+REST API:
 GET /api/weather/current?city={cityName}
 
-Response JSON:
+UI Pages:
+GET / (redirects to /weather)
+GET /weather?city={cityName}
+
+## Running
+```bash
+mvn spring-boot:run
+```
+Open the UI in a browser:
+```
+http://localhost:8080/weather
+```
+Or just:
+```
+http://localhost:8080/
+```
+
+## Sample API Response
 ```
 {
   "city": "Berlin",
@@ -24,40 +42,26 @@ Errors:
 - 404 if city not found
 - 500 for unexpected errors
 
-## Run
-
-```bash
-mvn spring-boot:run
-```
-
-Then test:
-```bash
-curl 'http://localhost:8080/api/weather/current?city=Berlin'
-```
-
 ## Tests
-Run the test suite:
+Run all tests:
 ```bash
 mvn test
 ```
 
-## Next Steps (Frontend with Thymeleaf)
-- Create a form to input city
-- Display weather result or error messages
-- Add basic styling
+## UI Behavior
+- Blank city submission: displays inline error message.
+- Unknown city: displays error returned from backend.
+- Successful lookup: renders table with weather data and retains city in input field.
 
-## Notes
-- External calls use Open-Meteo Geocoding and Forecast API.
-- For production, consider caching responses and adding retries/timeouts.
-package com.pgedlek.vibe_coding.weather.dto;
+## Tech Notes
+- WebFlux + Thymeleaf used (server-side rendering, non-blocking external calls via WebClient).
+- Basic timeouts configured in `WebClientConfig`.
+- Consider adding caching & resilience (retry/backoff) for production.
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+## Postman
+Import the collection in `postman/WeatherApp.postman_collection.json` and environment `postman/WeatherLocal.postman_environment.json`.
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public record GeocodingResult(
-        String name,
-        double latitude,
-        double longitude,
-        String country
-) {}
-
+## Next Ideas
+- Add client-side enhancement (fetch without full page reload).
+- Add metric endpoints with Micrometer.
+- Add Dockerfile for containerization.

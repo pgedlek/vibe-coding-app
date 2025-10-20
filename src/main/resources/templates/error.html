@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Error</title>
+  <link rel="stylesheet" th:href="@{/css/style.css}" />
+  <style>
+    .error-page { text-align:center; padding:3rem 1rem; }
+    .error-page h1 { font-size:2rem; margin-bottom:1rem; }
+    .error-page p { margin:.5rem 0 1.25rem; }
+  </style>
+</head>
+<body>
+<div class="container error-page">
+  <h1>Something went wrong</h1>
+  <p th:text="${error}" >An unexpected error occurred.</p>
+  <p>Status code: <strong th:text="${status}">500</strong></p>
+  <a href="/weather">Return to Weather Lookup</a>
+</div>
+</body>
+</html>
+
