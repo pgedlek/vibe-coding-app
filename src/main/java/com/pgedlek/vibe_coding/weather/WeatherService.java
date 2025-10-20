@@ -1,8 +1,11 @@
 package com.pgedlek.vibe_coding.weather;
 
 import com.pgedlek.vibe_coding.weather.dto.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientException;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
@@ -16,6 +19,12 @@ import com.github.benmanes.caffeine.cache.Cache;
 @Service
 public class WeatherService {
 
+    private static final Logger logger = LoggerFactory.getLogger(WeatherService.class);
+    private static final String GEOCODE_BASE_URL = "https://geocoding-api.open-meteo.com/v1/search";
+    private static final String FORECAST_BASE_URL = "https://api.open-meteo.com/v1/forecast";
+    private static final Duration RETRY_BACKOFF = Duration.ofSeconds(1);
+    private static final int MAX_RETRIES = 3;
+
     private final WebClient webClient;
     private final Cache<String, WeatherResponse> weatherCache;
 
@@ -24,67 +33,103 @@ public class WeatherService {
         this.weatherCache = weatherCache;
     }
 
+    private String buildGeocodeUrl(String city) {
+        try {
+            String encodedCity = URLEncoder.encode(city, StandardCharsets.UTF_8);
+            return GEOCODE_BASE_URL + "?count=1&language=en&name=" + encodedCity;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to encode city name", e);
+        }
+    }
+
+    private String buildForecastUrl(double latitude, double longitude) {
+        return FORECAST_BASE_URL + "?current_weather=true&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=UTC&latitude=" + latitude + "&longitude=" + longitude;
+    }
+
+    private Mono<GeocodingResponse> fetchGeocoding(String url) {
+        logger.debug("Fetching geocoding data from: {}", url);
+        return webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(GeocodingResponse.class)
+                .retryWhen(Retry.backoff(MAX_RETRIES, RETRY_BACKOFF).filter(throwable -> throwable instanceof WebClientException))
+                .timeout(Duration.ofSeconds(10));
+    }
+
+    private Mono<ForecastResponse> fetchForecast(String url) {
+        logger.debug("Fetching forecast data from: {}", url);
+        return webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(ForecastResponse.class)
+                .retryWhen(Retry.backoff(MAX_RETRIES, RETRY_BACKOFF).filter(throwable -> throwable instanceof WebClientException))
+                .timeout(Duration.ofSeconds(10));
+    }
+
+    private WeatherResponse mapToWeatherResponse(GeocodingResult geoResult, ForecastResponse forecast) {
+        List<DailyForecastItem> items = new ArrayList<>();
+        DailyData daily = forecast.getDaily();
+        if (daily != null && daily.getTime() != null) {
+            String[] times = daily.getTime();
+            Double[] max = daily.getTemperature_2m_max();
+            Double[] min = daily.getTemperature_2m_min();
+            Integer[] precip = daily.getPrecipitation_probability_max();
+            Integer[] codes = daily.getWeathercode();
+            for (int i = 0; i < times.length; i++) {
+                items.add(new DailyForecastItem(
+                        times[i],
+                        max != null && i < max.length ? max[i] : null,
+                        min != null && i < min.length ? min[i] : null,
+                        precip != null && i < precip.length ? precip[i] : null,
+                        codes != null && i < codes.length ? codes[i] : null
+                ));
+            }
+        }
+        return new WeatherResponse(
+                geoResult.getName(),
+                forecast.getLatitude(),
+                forecast.getLongitude(),
+                forecast.getCurrent_weather().getTemperature(),
+                forecast.getCurrent_weather().getWindspeed(),
+                forecast.getCurrent_weather().getWinddirection(),
+                forecast.getCurrent_weather().getTime(),
+                items
+        );
+    }
+
     public Mono<WeatherResponse> getCurrentWeather(String city) {
         if (city == null || city.trim().isEmpty()) {
+            logger.warn("Invalid city input: null or empty");
             return Mono.error(new IllegalArgumentException("City must not be blank"));
         }
         String trimmed = city.trim();
         String normalizedKey = trimmed.toLowerCase();
         WeatherResponse cached = weatherCache.getIfPresent(normalizedKey);
         if (cached != null) {
+            logger.debug("Returning cached weather data for city: {}", trimmed);
             return Mono.just(cached);
         }
-        String encodedCity = URLEncoder.encode(trimmed, StandardCharsets.UTF_8);
-        String geocodeUrl = "https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&name=" + encodedCity;
-        return webClient.get()
-                .uri(geocodeUrl)
-                .retrieve()
-                .bodyToMono(GeocodingResponse.class)
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)))
+        logger.info("Fetching weather data for city: {}", trimmed);
+        String geocodeUrl = buildGeocodeUrl(trimmed);
+        return fetchGeocoding(geocodeUrl)
                 .flatMap(geo -> {
                     List<GeocodingResult> results = geo.getResults();
                     if (results == null || results.isEmpty()) {
+                        logger.warn("No geocoding results found for city: {}", trimmed);
                         return Mono.error(new CityNotFoundException(trimmed));
                     }
                     GeocodingResult result = results.get(0);
-                    String forecastUrl = "https://api.open-meteo.com/v1/forecast?current_weather=true&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=UTC&latitude=" + result.getLatitude() + "&longitude=" + result.getLongitude();
-                    return webClient.get()
-                            .uri(forecastUrl)
-                            .retrieve()
-                            .bodyToMono(ForecastResponse.class)
-                            .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)))
-                            .map(fr -> {
-                                List<DailyForecastItem> items = new ArrayList<>();
-                                DailyData daily = fr.getDaily();
-                                if (daily != null && daily.getTime() != null) {
-                                    String[] times = daily.getTime();
-                                    Double[] max = daily.getTemperature_2m_max();
-                                    Double[] min = daily.getTemperature_2m_min();
-                                    Integer[] precip = daily.getPrecipitation_probability_max();
-                                    Integer[] codes = daily.getWeathercode();
-                                    for (int i = 0; i < times.length; i++) {
-                                        items.add(new DailyForecastItem(
-                                                times[i],
-                                                max != null && i < max.length ? max[i] : null,
-                                                min != null && i < min.length ? min[i] : null,
-                                                precip != null && i < precip.length ? precip[i] : null,
-                                                codes != null && i < codes.length ? codes[i] : null
-                                        ));
-                                    }
-                                }
-                                return new WeatherResponse(
-                                        result.getName(),
-                                        fr.getLatitude(),
-                                        fr.getLongitude(),
-                                        fr.getCurrent_weather().getTemperature(),
-                                        fr.getCurrent_weather().getWindspeed(),
-                                        fr.getCurrent_weather().getWinddirection(),
-                                        fr.getCurrent_weather().getTime(),
-                                        items
-                                );
-                            });
+                    String forecastUrl = buildForecastUrl(result.getLatitude(), result.getLongitude());
+                    return fetchForecast(forecastUrl)
+                            .map(fr -> mapToWeatherResponse(result, fr));
                 })
-                .doOnNext(resp -> weatherCache.put(normalizedKey, resp));
+                .doOnNext(resp -> {
+                    weatherCache.put(normalizedKey, resp);
+                    logger.debug("Cached weather data for city: {}", trimmed);
+                })
+                .doOnError(WebClientException.class, e -> logger.error("WebClient error for city {}: {}", trimmed, e.getMessage()))
+                .doOnError(CityNotFoundException.class, e -> logger.warn("City not found: {}", trimmed))
+                .doOnError(IllegalArgumentException.class, e -> logger.warn("Invalid input: {}", e.getMessage()));
     }
 
     public long cacheSize() {
